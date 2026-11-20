@@ -8,7 +8,7 @@ srv = subprocess.Popen([sys.executable, '-m', 'http.server', '8783', '--bind', '
 errs = []
 try:
     with sync_playwright() as p:
-        b = p.chromium.launch(args=['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+        b = p.chromium.launch(channel='chrome', args=['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
         pg = b.new_page(viewport={'width': 844, 'height': 390}, device_scale_factor=2, has_touch=True)
         pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: m.type == 'error' and errs.append(m.text))
         pg.goto('http://127.0.0.1:8783/index.html'); pg.wait_for_timeout(1800)

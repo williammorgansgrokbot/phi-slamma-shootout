@@ -64,3 +64,5 @@ fr = hk.copy(); fa = np.array(fr); fa[:368, :, 3] = 0; Image.fromarray(fa).save(
 # plain plank tile for the floor around the court
 Image.open(O + 'court.jpg').crop((20, 730, 300, 960)).save(O + 'planks.jpg', quality=88)
 st = fit(key(S + 'stanchion_raw.jpg', hole_min=20), h=700); st.save(O + 'stanchion.png', optimize=True); print('stanchion', st.size)
+re_ = key(S + 'rack_empty_raw.jpg', hole_min=20); bb = re_.getbbox(); print('rack_empty bbox', bb)
+re_ = re_.crop(bb); re_ = re_.resize((600, round(re_.height * 600 / re_.width)), Image.LANCZOS); re_.save(O + 'rack_empty.png', optimize=True); print('rack_empty', re_.size)

@@ -4,7 +4,7 @@ import base64, os, re, json
 D = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/'
 ART = D + 'art/'
 NEED = ['logo.png', 'arena_wide.jpg', 'arena_back.jpg', 'court.jpg', 'planks.jpg', 'hoop_full.png', 'hoop_front.png',
-        'ball.png', 'moneyball.png', 'stanchion.png'] + ['%s_%s.png' % (c, p) for c in ('hakeem', 'clyde') for p in ('ready', 'set', 'shoot', 'follow', 'cheer')]
+        'ball.png', 'moneyball.png', 'stanchion.png', 'rack_empty.png'] + ['%s_%s.png' % (c, p) for c in ('hakeem', 'clyde') for p in ('ready', 'set', 'shoot', 'follow', 'cheer')]
 A = {}
 for n in NEED:
     src = D + 'art_web/' + n if os.path.exists(D + 'art_web/' + n) else ART + n

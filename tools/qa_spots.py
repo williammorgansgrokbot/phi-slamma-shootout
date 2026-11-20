@@ -7,7 +7,7 @@ D = Path(__file__).resolve().parent.parent
 srv = subprocess.Popen([sys.executable, '-m', 'http.server', '8785', '--bind', '127.0.0.1'], cwd=D, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(.6)
 try:
     with sync_playwright() as p:
-        b = p.chromium.launch(args=['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+        b = p.chromium.launch(channel='chrome', args=['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
         pg = b.new_page(viewport={'width': 844, 'height': 390}, device_scale_factor=2)
         pg.goto('http://127.0.0.1:8785/index.html'); pg.wait_for_timeout(1500)
         pg.click('[data-mode=solo]'); pg.wait_for_timeout(300); pg.click('.card[data-char=hakeem]'); pg.wait_for_timeout(900)

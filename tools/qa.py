@@ -12,7 +12,7 @@ try:
     with sync_playwright() as p:
         for eng in engines:
             bt = getattr(p, eng)
-            b = bt.launch(args=['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] if eng == 'chromium' else [])
+            b = bt.launch(channel='chrome' if eng == 'chromium' else None, args=['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] if eng == 'chromium' else [])
             for w, h in SIZES:
                 tag = f'{eng}_{w}x{h}'
                 ctx = b.new_context(viewport={'width': w, 'height': h}, device_scale_factor=2 if w == 844 else 1, has_touch=True)

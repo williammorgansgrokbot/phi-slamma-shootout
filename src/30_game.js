@@ -1,13 +1,13 @@
 // ---------- constants ----------
 const RIM = new THREE.Vector3(0, 3.05, 0);
-const RIM_R = 0.42, BALL_R = 0.18, G = -9.8;
+const RIM_R = 0.6, BALL_R = 0.22, G = -9.8;
 const ROUND_TIME = 60, RACKS = 5, PER_RACK = 5;
 const SPOT_R = 7.35, SPOT_ANG = [-78, -40, 0, 40, 78].map((d) => d * Math.PI / 180);
 const CHARS = {
   hakeem: { name: 'Hakeem', nick: 'The Dream', sweet: 0.15, reload: 0.42 },
   clyde: { name: 'Clyde', nick: 'The Glide', sweet: 0.12, reload: 0.3 }
 };
-const SWEET_C = 0.78, FILL_TIME = 0.95;
+const FILL_TIME = 0.95, SWEET_MIN = 0.3, SWEET_MAX = 0.92;
 
 // ---------- renderer / scene ----------
 const canvas = $('gl');
@@ -68,7 +68,7 @@ const hoopFront = hoopLayer('hoop_front.png', 30);
 
 // shooter: billboard sprite
 function spriteMat(name) { return new THREE.SpriteMaterial({ map: TEX[name] || tex(name), transparent: true, depthWrite: false }); }
-const shooter = new THREE.Sprite(spriteMat('hakeem_set.png')); shooter.center.set(0.5, 0); shooter.renderOrder = 40; scene.add(shooter);
+const shooter = new THREE.Sprite(spriteMat('hakeem_set.png')); shooter.material.depthWrite = true; shooter.material.alphaTest = 0.35; shooter.center.set(0.5, 0); shooter.renderOrder = 40; scene.add(shooter);
 ['hakeem', 'clyde'].forEach((c) => ['set', 'shoot', 'follow', 'cheer'].forEach((p) => tex(c + '_' + p + '.png')));
 const shadowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const r = g.createRadialGradient(32, 32, 2, 32, 32, 31); r.addColorStop(0, 'rgba(0,0,0,0.55)'); r.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); return t; })();
 const shooterShadow = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
@@ -86,21 +86,45 @@ for (let i = 0; i < 6; i++) {
   balls.push({ s, sh, active: false });
 }
 
+// ---------- racks: one at every spot around the horn, balls disappear as they're shot ----------
+const RACK_W = 2.0, RACK_H = RACK_W * 264 / 600, RACK_CUPS = [103, 207, 308, 410, 515];
+const racks = [];
+function buildRacks() { for (let i = 0; i < 5; i++) {
+  const g = new THREE.Group(); scene.add(g);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(RACK_W, RACK_H), new THREE.MeshBasicMaterial({ map: TEX['rack_empty.png'] || tex('rack_empty.png'), transparent: true, alphaTest: 0.35 }));
+  m.position.y = RACK_H / 2; m.renderOrder = 35; g.add(m);
+  const bl = [];
+  for (let k = 0; k < 5; k++) {
+    const d = 92 / 600 * RACK_W * 1.05;
+    const bm = new THREE.Mesh(new THREE.PlaneGeometry(d, d), new THREE.MeshBasicMaterial({ map: k === 4 ? moneyTex : ballTex, transparent: true, alphaTest: 0.35 }));
+    bm.position.set((RACK_CUPS[k] / 600 - 0.5) * RACK_W, RACK_H - 0.012 * RACK_W + d * 0.32, 0.01); bm.renderOrder = 36; g.add(bm); bl.push(bm);
+  }
+  const p = spotPos(i);
+  if (i === 2) g.position.set(p.x - 1.55, 0, p.z + 0.1); else if (i === 0 || i === 4) g.position.set(p.x - Math.sign(p.x) * 1.45, 0, p.z + 0.35); else g.position.set(p.x - Math.sign(p.x) * 0.8, 0, p.z + 1.2);
+  g.rotation.y = Math.atan2(CAM_FIXED.x - g.position.x, CAM_FIXED.z - g.position.z);
+  const sh = new THREE.Mesh(new THREE.PlaneGeometry(RACK_W * 1.1, 0.6), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+  sh.rotation.x = -Math.PI / 2; sh.position.set(g.position.x, 0.015, g.position.z); scene.add(sh);
+  racks.push({ g, balls: bl });
+} }
+function updateRacks() {
+  racks.forEach((r, i) => r.balls.forEach((b, k) => { b.visible = i > S.rack || (i === S.rack && k >= S.ball); }));
+}
+
 // ---------- layout ----------
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h;
-  camera.fov = w / h < 1.6 ? 50 : 42; camera.updateProjectionMatrix();
+  // keep ~33 deg of horizontal half-angle so both corners stay on screen at any landscape size
+  camera.fov = clamp(2 * Math.atan(Math.tan(33 * Math.PI / 180) / camera.aspect) * 180 / Math.PI, 24, 50); camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize); resize();
 
 function spotPos(i) { const a = SPOT_ANG[i]; return new THREE.Vector3(Math.sin(a) * SPOT_R, 0, Math.cos(a) * SPOT_R); }
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
-function camFor(i, out, look) {
-  const p = spotPos(i); const u = new THREE.Vector3(-p.x, 0, -p.z).normalize(); const r = new THREE.Vector3(-u.z, 0, u.x);
-  out.copy(p).addScaledVector(u, -3.0).addScaledVector(r, 1.0); out.y = 2.45;
-  look.copy(RIM).addScaledVector(r, 0.45); look.y = 2.45;
-}
+// Fixed camera behind the top of the arc: the hoop never moves on screen, the shooter walks the horn.
+const CAM_FIXED = new THREE.Vector3(0, 5.5, 17.5), LOOK_FIXED = new THREE.Vector3(0, 1.95, 2.6);
+function camFor(i, out, look) { out.copy(CAM_FIXED); look.copy(LOOK_FIXED); }
+function arcPos(a) { return new THREE.Vector3(Math.sin(a) * SPOT_R, 0, Math.cos(a) * SPOT_R); }
 
 // ---------- game state ----------
 const S = {
@@ -170,13 +194,23 @@ function resetRound() {
   else { $('sbOppName').textContent = S.players.length > 1 ? (S.players[1].cpu ? 'CPU' : S.players[1].label) : ''; $('sbOpp').textContent = '-'; }
   $('cpuTag').classList.toggle('hidden', !c.cpu); $('btnSkip').classList.toggle('hidden', !c.cpu);
   $('btnShoot').classList.toggle('hidden', c.cpu); $('shootZone').classList.toggle('hidden', c.cpu);
-  const sw = CHARS[c.char].sweet; $('meterSweet').style.bottom = ((SWEET_C - sw / 2) * 100) + '%'; $('meterSweet').style.height = (sw * 100) + '%';
+  S.sweetC = null; newSweet();
   $('meterFill').style.height = '0%'; $('board').classList.remove('low');
-  renderRack(); updateBoard();
+  shooter.material.rotation = 0; renderRack(); updateBoard();
+}
+// Each throw gets a fresh sweet spot at a random height (never too close to the last one).
+function sweetWidth() { return CHARS[S.cur.char].sweet * (S.ball === PER_RACK - 1 ? 0.85 : 1); }
+function newSweet() {
+  const w = sweetWidth(), lo = SWEET_MIN + w / 2, hi = SWEET_MAX - w / 2; let c, n = 0;
+  do { c = rand(lo, hi); n++; } while (S.sweetC != null && Math.abs(c - S.sweetC) < 0.16 && n < 20);
+  S.sweetC = c; S.sweetW = w;
+  const el = $('meterSweet'); el.style.bottom = ((c - w / 2) * 100) + '%'; el.style.height = (w * 100) + '%';
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
 }
 function startRound() { Input.reset(); setScreen('play'); Snd.crowd(true); callout('GO!', 0); S.lastTick = 0; S.paused = false; }
 
 function renderRack() {
+  updateRacks();
   const el = $('rackBalls'); el.innerHTML = '';
   for (let i = 0; i < PER_RACK; i++) {
     const im = document.createElement('img'); im.src = ASSET(i === PER_RACK - 1 ? 'moneyball.png' : 'ball.png');
@@ -210,14 +244,14 @@ function setPose(p) {
 
 // ---------- shooting ----------
 function gradeRelease(v, sweet) {
-  const d = v - SWEET_C, h = sweet / 2;
+  const d = v - S.sweetC, h = sweet / 2;
   if (Math.abs(d) <= h) return 'perfect';
   if (Math.abs(d) <= h + 0.09) return Math.random() < 0.62 ? 'good' : (d < 0 ? 'rimShort' : 'rimLong');
   return d < 0 ? 'short' : 'long';
 }
 function fire(v) {
   const c = S.cur, money = S.ball === PER_RACK - 1;
-  const sweet = CHARS[c.char].sweet * (money ? 0.85 : 1);
+  const sweet = S.sweetW;
   const g = gradeRelease(v, sweet);
   const made = g === 'perfect' || g === 'good';
   const pts = made ? (money ? 2 : 1) : 0;
@@ -243,7 +277,7 @@ function fire(v) {
     segs.push({ to: back, T: T * 1.03, ev: g === 'long' ? 'boardOut' : 'rimOut', bounce: u.clone().multiplyScalar(g === 'long' ? -2.4 : -1.4).addScaledVector(r, rand(-1.2, 1.2)).setY(g === 'long' ? 0.8 : 2.4) });
   }
   b.segs = segs; b.seg = 0; startSeg(b);
-  S.shots.push({ made, money, pts });
+  S.shots.push({ made, money, pts, v: +v.toFixed(3), c: +S.sweetC.toFixed(3) });
   const label = { perfect: 'SWISH!', good: 'IN!', rimShort: 'RIMMED OUT', rimLong: 'RIMMED OUT', short: 'TOO EARLY', long: 'TOO LATE' }[g];
   b.label = label; b.grade = g;
   Snd.release();
@@ -312,8 +346,9 @@ function cpuThink(dt) {
   }
   S.cpuNext -= dt;
   if (S.cpuNext <= 0 && canShoot()) {
-    const roll = Math.random(); const sw = c.sweet;
-    S.cpuTarget = roll < 0.5 ? SWEET_C + rand(-sw / 2.2, sw / 2.2) : roll < 0.78 ? SWEET_C + (Math.random() < 0.5 ? -1 : 1) * rand(sw / 2 + 0.01, sw / 2 + 0.08) : SWEET_C + (Math.random() < 0.5 ? -1 : 1) * rand(sw / 2 + 0.1, 0.25);
+    // CPU plays by the same rules: aims at this throw's random sweet spot, sometimes early/late
+    const roll = Math.random(), sw = S.sweetW, C = S.sweetC, sg = () => (Math.random() < 0.5 ? -1 : 1);
+    S.cpuTarget = clamp(roll < 0.5 ? C + rand(-sw / 2.2, sw / 2.2) : roll < 0.78 ? C + sg() * rand(sw / 2 + 0.01, sw / 2 + 0.08) : C + sg() * rand(sw / 2 + 0.1, 0.25), 0.05, 1.05);
     beginCharge(); S.cpuNext = rand(0.15, 0.45);
   }
 }
@@ -324,7 +359,7 @@ function beginCharge() { S.phase = 'charge'; S.holdT = 0; setPose('shoot'); }
 function release(v) {
   v = clamp(v, 0, 1.08);
   fire(v);
-  setPose('follow'); S.phase = 'follow'; S.phaseT = 0; $('meter').classList.toggle('hit', Math.abs(v - SWEET_C) <= CHARS[S.cur.char].sweet / 2);
+  setPose('follow'); S.phase = 'follow'; S.phaseT = 0; $('meter').classList.toggle('hit', Math.abs(v - S.sweetC) <= S.sweetW / 2);
 }
 function endRound() {
   if (S.over) return; S.over = true; Snd.buzzer(); callout('TIME!', '#ff7a5a');
@@ -363,7 +398,7 @@ $('btnSkip').onclick = () => { // finish the CPU round instantly with a fair sim
   if (!S.cur || !S.cur.cpu || S.over) return;
   while (S.rack < RACKS) { const money = S.ball === PER_RACK - 1; const r = Math.random(); if (r < 0.62) S.score += money ? 2 : 1; S.ball++; if (S.ball >= PER_RACK) { S.rack++; S.ball = 0; } }
   balls.forEach((b) => { b.active = false; b.s.visible = b.sh.visible = false; });
-  updateBoard(); endRound();
+  updateBoard(); renderRack(); endRound();
 };
 
 // ---------- menu gamepad / keyboard focus ----------
@@ -418,10 +453,10 @@ function stepGame(dt, inp) {
     S.moveT += dt; const k = smooth(clamp(1 + S.moveT / 0.85, 0, 1));
     const a = new THREE.Vector3(), la = new THREE.Vector3(), b2 = new THREE.Vector3(), lb = new THREE.Vector3();
     camFor(S.moveFrom, a, la); camFor(S.rack, b2, lb); camPos.lerpVectors(a, b2, k); camLook.lerpVectors(la, lb, k);
-    const pa = spotPos(S.moveFrom), pb = spotPos(S.rack); const pp = pa.clone().lerp(pb, k);
+    const pp = arcPos(lerp(SPOT_ANG[S.moveFrom], SPOT_ANG[S.rack], k));
     const u = new THREE.Vector3(-pp.x, 0, -pp.z).normalize(); const r = new THREE.Vector3(-u.z, 0, u.x); pp.addScaledVector(r, -0.1);
-    shooterBase.copy(pp); shooter.position.set(pp.x, Math.abs(Math.sin(k * Math.PI * 4)) * 0.06, pp.z); shooterShadow.position.set(pp.x, 0.02, pp.z);
-    if (S.moveT >= 0) { S.moveT = 0; placeShooter(S.rack, 0); renderRack(); }
+    shooterBase.copy(pp); shooter.position.set(pp.x, Math.abs(Math.sin(k * Math.PI * 5)) * 0.09, pp.z); shooter.material.rotation = Math.sin(k * Math.PI * 5) * 0.04; shooterShadow.position.set(pp.x, 0.02, pp.z);
+    if (S.moveT >= 0) { S.moveT = 0; shooter.material.rotation = 0; placeShooter(S.rack, 0); renderRack(); }
   } else if (S.moveT > 0) { camFor(S.moveFrom, camPos, camLook); } else if (S.rack < RACKS) { camFor(S.rack, camPos, camLook); }
   if (S.over) { if (S.phase === 'follow') { S.phaseT += dt; if (S.phaseT > 0.3) { S.phase = 'ready'; setPose('set'); } } return; }
   // shooter state machine
@@ -438,7 +473,7 @@ function stepGame(dt, inp) {
   // jump arc while charging/releasing
   let jump = 0;
   if (S.phase === 'charge') jump = Math.min(S.holdT / FILL_TIME, 1) * 0.38;
-  if (S.phase === 'follow') { S.phaseT += dt; jump = Math.max(0, 0.38 * (1 - S.phaseT / 0.32)); if (S.phaseT > 0.36) { S.phase = 'ready'; S.reloadT = CHARS[c.char].reload; setPose('set'); $('meter').classList.remove('hit'); setTimeout(() => { if (S.phase === 'ready') $('meterFill').style.height = '0%'; }, 150); } }
+  if (S.phase === 'follow') { S.phaseT += dt; jump = Math.max(0, 0.38 * (1 - S.phaseT / 0.32)); if (S.phaseT > 0.36) { S.phase = 'ready'; S.reloadT = CHARS[c.char].reload; setPose('set'); $('meter').classList.remove('hit'); if (S.rack < RACKS) newSweet(); setTimeout(() => { if (S.phase === 'ready') $('meterFill').style.height = '0%'; }, 150); } }
   if (S.moveT >= 0) { shooter.position.y = jump; }
   // round complete when all 25 balls are up and settled
   if (S.rack >= RACKS && !balls.some((b) => b.active && !b.scored && !b.free) && S.phase === 'ready' && !S.over) {
@@ -448,10 +483,11 @@ function stepGame(dt, inp) {
 }
 
 // ---------- boot ----------
+buildRacks();
 camFor(0, camPos, camLook);
 placeShooter(0, 0); S.cur = { char: 'hakeem' }; setPose('set');
 THREE.DefaultLoadingManager.onLoad = () => { $('loading').classList.add('hidden'); };
 setTimeout(() => $('loading').classList.add('hidden'), 6000);
 setScreen('title');
 requestAnimationFrame(frame);
-window.__game = { S, release, fire, setScreen, startSelect, beginTurn };
+window.__game = { S, release, fire, setScreen, startSelect, beginTurn, gradeRelease };
