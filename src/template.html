@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2a1238">
+<title>Phi Slamma Jamma: Three-Point Shootout</title>
+<style>/*CSS*/</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="gl"></canvas>
+  <div id="hud" class="hidden">
+    <div id="board">
+      <div class="sbSide"><small id="sbName">HAKEEM</small><b id="sbScore">0</b></div>
+      <div class="sbMid"><small>TIME</small><b id="sbTime">60</b></div>
+      <div class="sbSide" id="sbOppWrap"><small id="sbOppName">CPU</small><b id="sbOpp">-</b></div>
+    </div>
+    <div id="topRight">
+      <button id="btnPause" class="roundBtn" aria-label="Pause"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4.2" height="14" rx="1.4"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.4"/></svg></button>
+      <button id="btnMute" class="roundBtn" aria-label="Sound"></button>
+    </div>
+    <div id="rackWrap"><small id="rackLabel">RACK 1 / 5</small><div id="rackBalls"></div></div>
+    <div id="callout"></div>
+    <div id="meter"><div id="meterTrack"><i id="meterSweet"></i><i id="meterFill"></i></div><small>POWER</small></div>
+    <div id="shootZone" aria-hidden="true"></div>
+    <button id="btnShoot" type="button" aria-label="Shoot"><span>SHOOT</span><small>hold &amp; release</small></button>
+    <button id="btnSkip" type="button" class="pill small hidden">Skip CPU</button>
+    <div id="cpuTag" class="hidden">CPU SHOOTING</div>
+  </div>
+
+  <section id="title" class="screen show">
+    <div class="titleInner">
+      <img id="logo" alt="Phi Slamma Jamma: Three-Point Shootout">
+      <div class="modes">
+        <button class="pill go" data-mode="solo">Solo</button>
+        <button class="pill go" data-mode="cpu">vs CPU</button>
+        <button class="pill go" data-mode="pass">Pass &amp; Play</button>
+      </div>
+      <div class="perks"><span>60-second shootout</span><span>Money balls worth 2</span><span>Plays on iPhone</span></div>
+      <div id="bestScore" class="best">Best 0</div>
+    </div>
+    <button id="btnMuteTitle" class="roundBtn muteTop" aria-label="Sound"></button>
+  </section>
+
+  <section id="select" class="screen">
+    <div class="selInner">
+      <h2 id="selTitle">Pick your shooter</h2>
+      <div class="cards">
+        <button class="card" data-char="hakeem"><img id="cardHakeem" alt=""><b>Hakeem</b><i>"The Dream"</i><span>Dream Shake: bigger sweet spot</span></button>
+        <button class="card" data-char="clyde"><img id="cardClyde" alt=""><b>Clyde</b><i>"The Glide"</i><span>Smooth Glide: quicker reload</span></button>
+      </div>
+      <button id="selBack" class="pill small">Back</button>
+    </div>
+  </section>
+
+  <section id="handoff" class="screen">
+    <div class="modal">
+      <h2 id="hoTitle">Player 2, you're up!</h2>
+      <p id="hoSub">Pass the phone over.</p>
+      <button id="hoGo" class="pill go">Ready</button>
+    </div>
+  </section>
+
+  <section id="pause" class="screen">
+    <div class="modal">
+      <h2>Timeout</h2>
+      <button id="pResume" class="pill go">Resume</button>
+      <button id="pRestart" class="pill">Restart</button>
+      <button id="pQuit" class="pill">Quit</button>
+    </div>
+  </section>
+
+  <section id="results" class="screen">
+    <div class="resInner">
+      <img id="resHero" alt="">
+      <div class="modal">
+        <h2 id="resTitle">Final Score</h2>
+        <div id="resRows" class="stats"></div>
+        <p id="resSub" class="sub"></p>
+        <div class="row">
+          <button id="resAgain" class="pill go">Play Again</button>
+          <button id="resMenu" class="pill">Menu</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="rotate"><div class="rotBox"><svg viewBox="0 0 24 24"><path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 3v14h10V5z"/></svg><span>Turn your phone sideways</span></div></div>
+  <div id="loading">Loading…</div>
+</div>
+<script>/*SCRIPT*/</script>
+</body>
+</html>
